@@ -1227,9 +1227,126 @@ function switchTab(tab, btn) {
   if (btn) btn.classList.add('active');
   if (tab === 'list') renderList();
 }
+// ==================== THEME ====================
+function toggleTheme() {
+  var html = document.documentElement;
+  var current = html.getAttribute('data-theme');
+  var next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
 
+  var toggleBtn = document.getElementById('themeToggle');
+  if (toggleBtn) toggleBtn.textContent = next === 'dark' ? '☀️' : '🌙';
+
+  var toggleSwitch = document.getElementById('themeToggleSwitch');
+  if (toggleSwitch) {
+    if (next === 'dark') toggleSwitch.classList.add('active');
+    else toggleSwitch.classList.remove('active');
+  }
+}
+
+function initTheme() {
+  var saved = localStorage.getItem('theme');
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var theme = saved || (prefersDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+
+  var toggleBtn = document.getElementById('themeToggle');
+  if (toggleBtn) toggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+
+  var toggleSwitch = document.getElementById('themeToggleSwitch');
+  if (toggleSwitch) {
+    if (theme === 'dark') toggleSwitch.classList.add('active');
+    else toggleSwitch.classList.remove('active');
+  }
+}
+
+// ==================== BACKUP REMINDER ====================
+var BACKUP_KEY = 'ai_dialog_backup_settings';
+
+function getBackupSettings() {
+  try {
+    var data = localStorage.getItem(BACKUP_KEY);
+    return data ? JSON.parse(data) : { enabled: true, lastBackup: null };
+  } catch(e) { return { enabled: true, lastBackup: null }; }
+}
+
+function saveBackupSettings(settings) {
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(settings));
+}
+
+function toggleBackupReminder() {
+  var settings = getBackupSettings();
+  settings.enabled = !settings.enabled;
+  saveBackupSettings(settings);
+
+  var toggleSwitch = document.getElementById('backupToggleSwitch');
+  if (toggleSwitch) {
+    if (settings.enabled) toggleSwitch.classList.add('active');
+    else toggleSwitch.classList.remove('active');
+  }
+  showAlert(settings.enabled ? '已啟用備份提醒' : '已關閉備份提醒', 'success');
+  checkBackupBanner();
+}
+
+function initBackupSettings() {
+  var settings = getBackupSettings();
+  var toggleSwitch = document.getElementById('backupToggleSwitch');
+  if (toggleSwitch) {
+    if (settings.enabled) toggleSwitch.classList.add('active');
+    else toggleSwitch.classList.remove('active');
+  }
+
+  var lastBackupEl = document.getElementById('lastBackupDate');
+  if (lastBackupEl) {
+    lastBackupEl.textContent = settings.lastBackup
+      ? settings.lastBackup
+      : '從未備份';
+  }
+  checkBackupBanner();
+}
+
+function checkBackupBanner() {
+  var settings = getBackupSettings();
+  var banner = document.getElementById('backupBanner');
+  if (!banner) return;
+
+  if (!settings.enabled) {
+    banner.classList.remove('show');
+    return;
+  }
+
+  if (!settings.lastBackup) {
+    banner.classList.add('show');
+    document.getElementById('backupBannerText').textContent = '從未備份，點擊立即導出';
+    return;
+  }
+
+  var last = new Date(settings.lastBackup);
+  var now = new Date();
+  var diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+
+  if (diffDays >= 7) {
+    banner.classList.add('show');
+    document.getElementById('backupBannerText').textContent = '已 ' + diffDays + ' 天未備份，點擊立即導出';
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// 覆寫 exportData 以記錄備份時間
+var originalExportData = exportData;
+exportData = function() {
+  originalExportData();
+  var settings = getBackupSettings();
+  settings.lastBackup = new Date().toISOString().split('T')[0];
+  saveBackupSettings(settings);
+  initBackupSettings();
+};
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', function() {
+  initTheme();
+  initBackupSettings();
   updateStats();
   renderList();
 });
