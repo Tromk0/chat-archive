@@ -1,6 +1,6 @@
 
 使用
-https://github.com/Tromk/chat-archive/
+https://github.com/Tromk0/chat-archive/
 
 
 
